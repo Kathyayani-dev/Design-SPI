@@ -1,9 +1,6 @@
 # code for spi_baud_generator_tb.v
 
 ...
-# code for spi_baud_generator_tb.v
-
-...
 module spi_baud_generator_tb();
 	reg pclk,preset,spiswai_i,cpol_i,cpha_i,ss_i;
 	reg [1:0]spi_mode_i;
