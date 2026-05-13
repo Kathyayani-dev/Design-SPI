@@ -1,0 +1,433 @@
+# code for spi_baud_generator_tb.v
+
+...
+module spi_baud_generator_tb();
+	reg pclk,preset,spiswai_i,cpol_i,cpha_i,ss_i;
+	reg [1:0]spi_mode_i;
+	reg [2:0]sppr_i,spr_i;
+	wire sclk_o,miso_receive_sclk_o,miso_receive_sclk0_o,mosi_send_sclk_o,mosi_send_sclk0_o;
+	wire [11:0]BaudRateDivisor_o;
+	parameter CYCLE=10;
+	spi_baud_generator DUT(pclk,preset,spi_mode_i,spiswai_i,sppr_i,spr_i,cpol_i,cpha_i,ss_i,sclk_o,BaudRateDivisor_o,miso_receive_sclk_o,miso_receive_sclk0_o,mosi_send_sclk_o,mosi_send_sclk0_o);
+
+	always
+	begin
+		#(CYCLE/2);
+		pclk=1'b0;
+		#(CYCLE/2);
+		pclk=~pclk;
+	end
+	task initialize();
+	begin
+		cpol_i=1;
+		cpha_i=0;
+		spi_mode_i=2'b0;
+		spiswai_i=1'b0;
+		ss_i=1'b1;
+	end
+	endtask
+	task reset();
+	begin
+		@(negedge pclk);
+		preset=1'b0;
+		@(negedge pclk);
+		preset=1'b1;
+	end
+	endtask
+	task stimulus(input i,j,input[2:0]m,n);
+	begin
+	@(negedge pclk);
+		cpol_i=i;
+		cpha_i=j;
+		sppr_i=m;
+		spr_i=n;
+	end
+	endtask
+	initial
+	begin
+		initialize;
+		reset;
+      ss_i=0;
+		stimulus(1'b0,1'b1,3'b000,3'b001);
+	 	 
+	 end
+	 
+	 
+endmodule
+
+...
+
+# code for spi_shifter_tb.v
+
+...
+module spi_shifter_tb(); 
+ reg pclk, preset_n, ss_i, send_data_i, lsbfe_i, cpha_i, cpol_i, miso_r_sclk_i, miso_r_sclk0_i, mosi_s_sclk_i, 
+mosi_s_sclk0_i, miso_i,rec_data_i;
+ 
+ reg [7:0]data_mosi_i; 
+ wire mosi_o; 
+ wire [7:0]data_miso_o; 
+  
+ spi_shifter DUT(PCLK,PRESET_n,ss_i,send_data_i,lsbfe_i,cpha_i,cpol_i,miso_receive_sclk_i,miso_receive_sclk0_i,data_mosi_i,miso_i,receive_data_i,mosi_o,data_miso_o,mosi_send_sclk_i,mosi_send_sclk0_i);
+ initial 
+ begin 
+  pclk=1'b0; 
+  forever #5 pclk=~pclk; 
+ end 
+ 
+ task reset(); 
+  begin 
+   @(negedge pclk) 
+    preset_n=1'b0; 
+   @(negedge pclk) 
+    preset_n=1'b1; 
+ 
+  end 
+ endtask 
+ 
+ task initialization(); 
+  begin 
+   @(negedge pclk) 
+   ss_i=1'b1; 
+   {send_data_i, lsbfe_i, cpha_i, cpol_i, miso_r_sclk_i, miso_r_sclk0_i, mosi_s_sclk_i, 
+mosi_s_sclk0_i, data_mosi_i, miso_i, rec_data_i}=0; 
+  end 
+ endtask 
+ 
+ task trans(input x, y); 
+  begin 
+   @(negedge pclk) 
+   send_data_i=x; 
+   rec_data_i=y; 
+  end 
+ endtask 
+ 
+ task in(input a, b); 
+  begin 
+   @(negedge pclk) 
+   ss_i=1'b0; 
+   cpol_i=a; 
+   cpha_i=b; 
+  end 
+ endtask 
+ 
+ task flags(); 
+  begin 
+   @(negedge pclk) 
+   {miso_r_sclk_i, miso_r_sclk0_i, mosi_s_sclk_i, mosi_s_sclk0_i}=4'b1111; 
+  end 
+ endtask 
+ 
+ task stimulus(input p,input [7:0]q); 
+  begin 
+   @(negedge pclk) 
+   miso_i=p; 
+   data_mosi_i=q; 
+  end 
+ endtask 
+ 
+ initial 
+  begin 
+   initialization(); 
+   reset(); 
+   #10; 
+   flags(); 
+   stimulus(1'b1, 8'b01100110); 
+   in(0,1); 
+   trans(1'b1, 1'b1); 
+    
+   #500; 
+   $finish; 
+  end 
+endmodule  
+
+...
+
+# code for spi_slave_interface_tb.v
+
+...
+module spi_slave_interface_tb();
+	reg PCLK, PRESET_n, PWRITE_i, PSEL_i, PENABLE_i;
+	reg [2:0] PADDR_i;
+	reg [7:0] PWDATA_i;
+	reg ss_o;
+	reg [7:0] miso_data_i;
+	reg receive_data_i, tip_i;
+
+	wire [7:0] PRDATA_o;
+	wire mstr_o, cpol_o, cpha_o, lsbfe_o, spiswai_o;
+	wire [2:0] sppr_o, spr_o;
+	wire send_data_o;
+	wire [7:0]mosi_data_o;
+	wire [1:0] spi_mode_o;
+	wire spi_interrupt_request_o, PREADY_o, PSLVERR_o;
+	
+	spi_slave_interface DUT(PCLK, PRESET_n, PWRITE_i, PSEL_i, PENABLE_i, PADDR_i, PWDATA_i, ss_o, miso_data_i,receive_data_i, tip_i, PRDATA_o, mstr_o, cpol_o, cpha_o, lsbfe_o, spiswai_o,sppr_o, spr_o,spi_interrupt_request_o, PREADY_o, PSLVERR_o, send_data_o, mosi_data_o, spi_mode_o);
+	
+	parameter c=10;
+	always
+	begin
+		#(c/2)	PCLK=1'b1;
+		#(c/2)	PCLK=1'b0;
+	end
+	
+	task rst_slave_interface;
+	begin
+		@(negedge PCLK)
+			PRESET_n=1'b0;
+		@(negedge PCLK)
+			PRESET_n=1'b1;			
+	end
+	endtask
+	
+	task initialize;
+	begin
+		ss_o=1'b0;
+		tip_i=1'b1;
+	end
+	endtask
+	
+	task config_spi_reg(input [2:0]addr, input [7:0]wdata);
+	begin
+		@(posedge PCLK)
+		PSEL_i=1'b1;
+		PENABLE_i=1'b0; 
+		PWRITE_i=1'b1;	
+		PADDR_i=addr;
+		PWDATA_i=wdata;
+		
+		@(posedge PCLK)
+		PSEL_i=1'b1;
+		PENABLE_i=1'b1;
+		PWRITE_i=1'b1;	
+		PADDR_i=addr;
+		PWDATA_i=wdata;
+				
+		@(posedge PCLK)
+		wait(PREADY_o)
+		PENABLE_i=1'b0;						
+	end
+	endtask
+	
+	//miso data from peripheral to change in Data register (DR)
+	task miso_data_peripheral(input [7:0]miso_data);
+	begin
+		@(posedge PCLK)
+		miso_data_i=miso_data;
+	end
+	endtask
+	
+	initial
+	begin
+		initialize;
+		rst_slave_interface;
+		config_spi_reg(3'b000, 8'b0101_1101);
+		config_spi_reg(3'b001, 8'b0000_0000);
+		config_spi_reg(3'b010, 8'b0010_0001);
+		config_spi_reg(3'b101, 8'b1100_1101);
+		#100;
+		miso_data_peripheral(8'b1010_0100);	
+	end	
+endmodule
+
+...
+
+# code for spi_slave_select_tb.v
+
+...
+module spi_slave_select_tb();
+	reg PCLK,PRESET_n,mstr_i,send_data_i,spiswai_i;
+	reg [1:0]spi_mode_i;
+	reg [11:0]baudratedivisor_i;
+	wire ss_o,receive_data_o;
+	wire tip_o;
+	parameter CYCLE=10;
+	spi_slave_select DUT(PCLK,PRESET_n,mstr_i,send_data_i,spiswai_i,spi_mode_i,ss_o,baudratedivisor_i,tip_o,receive_data_o);
+
+	always
+	begin
+		#(CYCLE/2);
+		PCLK=1'b0;
+		#(CYCLE/2);
+		PCLK=~PCLK;
+	end
+	task reset();
+		begin
+			@(negedge PCLK);
+			PRESET_n=1'b0;
+			//@(negedge PCLK);
+			PRESET_n=1'b1;
+		end
+	endtask
+	task initialize();
+		begin
+			{PCLK,PRESET_n,mstr_i,send_data_i,spiswai_i}=0;
+			spi_mode_i=1'b0;
+			baudratedivisor_i=12'b0;
+		end
+	endtask
+	task stimulus(input a,b,c,e, input [1:0]x ,input[11:0]y);
+		begin
+			@(negedge PCLK);
+			mstr_i=a;
+			spiswai_i=b;
+			send_data_i=c;
+			@(negedge PCLK);
+			send_data_i=e;
+			spi_mode_i=x;
+			baudratedivisor_i=y;
+		end
+	endtask
+	initial
+	begin
+		initialize;
+		reset;
+		stimulus(1'b1,1'b0,1'b1,1'b0,2'b00,12'b10);
+	end
+	initial
+	begin
+	#1000 $finish;
+	end
+endmodule
+
+# code for spi_top_module_tb.v
+
+...
+module spi_top_module_tb(); 
+	  
+    reg         PCLK; 
+    reg         PRESET_n; 
+    reg  [2:0]  PADDR_i; 
+    reg         PWRITE_i; 
+    reg         PSEL_i; 
+    reg         PENABLE_i; 
+    reg  [7:0]  PWDATA_i; 
+    wire [7:0]  PRDATA_o; 
+    wire        PREADY_o; 
+    wire        PSLVERR_o; 
+    wire        sclk_o; 
+    wire        mosi_o; 
+    wire        ss_o; 
+    reg         miso_i; 
+    wire        spi_interrupt_request_o;
+
+   spi_top_module DUT(.PCLK(PCLK),.PRESET_n(PRESET_n),.PADDR_i(PADDR_i),.PWRITE_i(PWRITE_i),.PSEL_i(PSEL_i),.PENABLE_i(PENABLE_i),.miso_i(miso_i),.PWDATA_i(PWDATA_i),
+	   .ss_o(ss_o),.SCLK_o(sclk_o),.spi_interrupt_request_o(spi_interrupt_request_o),.mosi_o(mosi_o),.PREADY_o(PREADY_o),.PSLVERR_o(PSLVERR_o),
+	   .PRDATA_o(PRDATA_o)); 
+ 
+   
+  integer i=0; 
+ 
+     initial begin 
+         PCLK = 0; 
+         forever #5 PCLK = ~PCLK;   
+      end 
+ 
+     task initialize(); 
+  begin 
+   @(negedge PCLK); 
+   	  PSEL_i    = 0; 
+          PENABLE_i = 0; 
+          PWRITE_i  = 0; 
+          miso_i    = 0; 
+          PADDR_i   = 0; 
+          PWDATA_i  = 0; 
+  end 
+ endtask 
+ 
+ 
+     task reset(); 
+   begin 
+   @(negedge PCLK) 
+         PRESET_n  = 0; 
+         @(negedge PCLK); 
+         PRESET_n = 1; 
+   end 
+  endtask 
+ 
+ 
+ 
+    task apb_write(input [2:0] addr, input [7:0] data); 
+     begin 
+        PADDR_i   = addr; 
+        PWDATA_i  = data; 
+        PWRITE_i  = 1; 
+        PSEL_i    = 1; 
+        PENABLE_i = 0; 
+ 
+        @(negedge PCLK); 
+        PENABLE_i = 1; 
+ 
+        @(negedge PCLK); 
+      	wait(PREADY_o); 
+        //PSEL_i    = 0; 
+        PENABLE_i = 0; 
+       // PWRITE_i  = 0; 
+		@(negedge PCLK); 
+ 
+    end 
+    endtask 
+ 
+ 
+    task apb_read(input [2:0] addr); 
+     begin 
+        PADDR_i   = addr; 
+        PWRITE_i  = 0; 
+        PSEL_i    = 1; 
+        PENABLE_i = 0; 
+ 
+        @(negedge PCLK); 
+        PENABLE_i = 1; 
+ 
+        @(negedge PCLK); 
+        wait(PREADY_o); 
+        //$display("READ @ %0d = %0h", addr, PRDATA_o); 
+        PSEL_i    = 0; 
+        PENABLE_i = 0; 
+		  @(negedge PCLK); 
+ 
+    end 
+    endtask 
+   
+  task in_0(input [7:0]a); 
+  begin  
+    for(i=7;i>=0;i=i-1) 
+     begin 
+      @(posedge sclk_o); 
+      miso_i<=a[i]; 
+     end 
+  end 
+ endtask 
+ 
+ task in_1(input [7:0]a); 
+  begin 
+   wait(!ss_o)  
+    for(i=0;i<8;i=i+1) 
+     begin 
+     @(posedge sclk_o);  
+      miso_i<=a[i];       
+     end 
+  end 
+ endtask 
+
+      initial  
+   begin 
+   initialize(); 
+   reset(); 
+        apb_write(3'b000, 8'b01010110);  // CR1 
+        apb_write(3'b001, 8'b00000000);  // CR2 
+        apb_write(3'b010, 8'b00000001);  // BR 
+		  apb_write(3'b101, 8'b10110110);  //DR
+        in_1(8'b11010111);
+        #100 apb_read(3'b101);   // Should read received byte 
+	#1000 $finish; 
+    end 
+endmodule
+
+...
+
+
+
+
+
+			
